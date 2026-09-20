@@ -207,7 +207,9 @@ def is_alert(sender, subject):
     if any(s in blob for s in ALERT_SENDERS):
         return True
     # vangnet op onderwerp
-    return bool(re.search(r"(nieuwe woning|nieuw aanbod|huurwoning|te huur|match)", blob))
+    return bool(re.search(
+        r"(nieuwe? woning|nieuw aanbod|huurwoning|huurhuis|te huur|match|"
+        r"appartement|woningaanbod|zoekopdracht|alert|beschikbaar)", blob))
 
 
 # ---------------------------------------------------------------- melden
@@ -269,6 +271,13 @@ def connect():
 
 def check_once(conn, seen, cfg, announce=True, limit=10):
     """Kijkt naar ongelezen mail en meldt nieuwe woninglinks."""
+    # NOOP is essentieel: zonder dit blijft de IMAP-sessie naar de toestand
+    # van het moment van verbinden kijken en zie je nieuwe mail NOOIT.
+    try:
+        conn.noop()
+    except Exception as e:  # noqa: BLE001
+        raise ConnectionError(f"noop mislukt: {e}") from e
+
     typ, data = conn.search(None, "UNSEEN")
     if typ != "OK":
         return 0
@@ -288,11 +297,13 @@ def check_once(conn, seen, cfg, announce=True, limit=10):
         subject = decode(msg.get("Subject"))
 
         if not is_alert(sender, subject):
+            log(f"  overgeslagen (geen alert): {subject[:55]}")
             continue
 
         html, text = body_of(msg)
         links = extract_links(html, text)
         if not links:
+            log(f"  alertmail zonder woninglinks: {subject[:55]}")
             continue
 
         source_name = re.sub(r".*<|>.*", "", sender).split("@")[-1] or sender
