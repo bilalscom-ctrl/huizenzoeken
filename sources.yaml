@@ -1,12 +1,119 @@
+# ============================================================
+#  huurbot - bronnen
+#  Status gecontroleerd op 20 september 2026.
+# ============================================================
+
 heartbeat_hours: 12
-filter: {enabled: true, max_price: 1650, min_price: 600, min_rooms: 3}
-enrich: false
-schedule: {fast_seconds: 60, slow_seconds: 600, fast_from_hour: 7, fast_until_hour: 21}
+
+# ---------- Filter ----------
+# Bij TWIJFEL meldt de bot altijd. Alleen als hij zeker weet dat iets
+# buiten je bereik valt, houdt hij zijn mond.
+filter:
+  enabled: true
+  max_price: 1650      # kale huur, iets boven je norm van 1550
+  min_price: 600       # daaronder bijna altijd een kamer of oplichting
+  min_rooms: 3         # alleen als de site letterlijk "slaapkamers" zegt
+
+enrich: true           # haalt prijs en kamers van de detailpagina
+
+# ---------- Tijdschema ----------
+schedule:
+  fast_seconds: 60     # overdag elke minuut
+  slow_seconds: 600    # 's nachts elke 10 minuten
+  fast_from_hour: 7
+  fast_until_hour: 21
+  fast_on_weekdays_only: false
+
+mail_interval_seconds: 20
+
+reply_reminder: |
+  Reageer NU. Dossier: [zet hier je Drive/Dropbox-link]
+  Rick Zeedijk: acceptatieformulier meesturen!
+
 sources:
-  - name: Werkende makelaar
-    url: http://localhost:8799/woningen/huur/
-    link_pattern: "/woning/"
-    exclude_text: ["verhuurd", "verkocht", "k.k."]
-  - name: JavaScript-site
-    url: http://localhost:8799/leeg/
-    link_pattern: "/woning/"
+
+  # ==========================================================
+  #  GECONTROLEERD EN WERKEND
+  # ==========================================================
+
+  # Gecontroleerd 20-09-2026: werkt.
+  # Woninglinks staan gewoon in de HTML, patroon /woning/<plaats>-<straat>-<nr>/
+  # Let op: deze site zet "Verhuurd" in de LINKTEKST, niet in het adres.
+  # Daarom exclude_text en niet exclude.
+  - name: Rick Zeedijk - huur
+    url: https://www.rickzeedijk.nl/woningen/huur/
+    link_pattern: "rickzeedijk\\.nl/woning/"
+    exclude_text: ["verhuurd", "verkocht", "onder bod", "ingetrokken", "k.k.", "v.o.n."]
+    enabled: true
+
+  # Nieuwe woningen verschijnen ook op de homepage onder "Nieuw".
+  # Soms staat een woning daar eerder dan in het gefilterde overzicht.
+  - name: Rick Zeedijk - homepage
+    url: https://www.rickzeedijk.nl/
+    link_pattern: "rickzeedijk\\.nl/woning/"
+    exclude_text: ["verhuurd", "verkocht", "onder bod", "k.k.", "v.o.n."]
+    enabled: true
+
+  # ==========================================================
+  #  WERKT NIET - site laadt woningen via JavaScript
+  # ==========================================================
+
+  # Gecontroleerd 20-09-2026: de aanbodpagina bevat alleen filters,
+  # geen woninglinks. Die worden pas na het laden opgehaald, dus de bot
+  # ziet niks. Dit is NIET op te lossen met een ander link_pattern.
+  # Oplossing: schrijf je in voor hun mailalert en laat mailbrug.py dat
+  # oppakken. Zie ook hun pagina "Binnenkort te huur Tiel".
+  - name: Witte Makelaars
+    url: https://www.wittemakelaars.nl/aanbod/woningaanbod/huur/
+    link_pattern: "/aanbod/woningaanbod/.+/huis-"
+    enabled: false
+
+  # ==========================================================
+  #  NOG NIET GECONTROLEERD - zet aan na `--test`
+  # ==========================================================
+  # Werkwijze: zet enabled op true, draai `python3 huurbot.py --test`.
+  # Komen er woningen uit? Laten staan. Komt er 0 uit? Open de site,
+  # klik een woning aan, kijk naar de URL in je adresbalk en pas
+  # link_pattern aan. Zie README stap 5.
+
+  - name: Het Makelaarshuys Tiel
+    url: https://www.hetmakelaarshuys.com/aanbod/woningaanbod/
+    link_pattern: "/aanbod/woningaanbod/.+/huis-"
+    exclude_text: ["verhuurd", "verkocht", "k.k.", "v.o.n."]
+    enabled: false
+
+  - name: Van Beusichem Makelaars
+    url: https://www.vanbeusichem.nl/aanbod/woningaanbod/huur/
+    link_pattern: "/aanbod/woningaanbod/.+/huis-"
+    exclude_text: ["verhuurd", "verkocht", "k.k.", "v.o.n."]
+    enabled: false
+
+  - name: Gerssen en Donkersloot
+    url: https://www.gdmakelaars.nl/aanbod/woningaanbod/huur/
+    link_pattern: "/aanbod/woningaanbod/.+/huis-"
+    exclude_text: ["verhuurd", "verkocht", "k.k.", "v.o.n."]
+    enabled: false
+
+  - name: Vastgoedbeheer Gelderland
+    url: https://www.vastgoedbeheergelderland.nl/woningaanbod/
+    link_pattern: "/woning"
+    exclude_text: ["verhuurd"]
+    enabled: false
+
+  - name: Van der Wal Makelaars Zaltbommel
+    url: https://www.vanderwal.nl/aanbod/woningaanbod/huur/
+    link_pattern: "/aanbod/woningaanbod/.+/huis-"
+    exclude_text: ["verhuurd", "verkocht", "k.k.", "v.o.n."]
+    enabled: false
+
+  - name: NederWoon Gelderland
+    url: https://www.nederwoon.nl/huurwoningen/gelderland
+    link_pattern: "/huurwoningen/[a-z-]+/[0-9]+"
+    exclude_text: ["verhuurd"]
+    enabled: false
+
+  - name: 123Wonen Nijmegen
+    url: https://www.123wonen.nl/huurwoningen/in/nijmegen
+    link_pattern: "/huurwoningen/.+/[0-9]"
+    exclude_text: ["verhuurd"]
+    enabled: false
