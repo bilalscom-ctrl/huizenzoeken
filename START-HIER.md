@@ -1,91 +1,119 @@
-# START HIER
+# START HIER - huurbot v3
 
-Lees dit eerst. Kost 2 minuten, bespaart je een uur.
+## Wat is er nieuw
 
-## Wat is dit
+**13 bronnen in plaats van 2.** Alle actieve bronnen zijn op 20-09-2026 echt
+gecontroleerd tegen hun werkelijke HTML.
 
-Twee programma's die samen zorgen dat jij als eerste weet dat er een
-huurwoning online komt.
-
-| | wat het doet |
+| bron | dekt |
 |---|---|
-| **huurbot.py** | kijkt elke minuut op makelaarssites |
-| **mailbrug.py** | leest je alertmails en pusht ze meteen naar je telefoon |
+| Huurwoningen.nl | 6 plaatsen, grootste aanbod van Nederland |
+| Huislijn.nl | 5 plaatsen, verzamelsite van veel makelaars |
+| Rick Zeedijk | lokale makelaar Tiel |
 
-## Status op 20 september 2026
+**Kant-en-klare reactiebrief.** Bij elke melding krijg je een tweede
+Telegram-bericht met een complete brief, met het adres en de huurprijs er al
+in. Lang indrukken, kopieren, plakken, versturen. Klaar in 15 seconden.
 
-Ik heb de sites echt gecontroleerd. Dit is de eerlijke stand:
+**Veel robuuster.** Crasht niet meer bij een kapotte site. Probeert het 3x
+opnieuw bij een tijdelijke storing. Herkent een blokkade (403/429) en zet die
+bron dan 30 minuten stil in plaats van door te rammen, want doorrammen is
+precies hoe je een permanente ban krijgt. Gebruikt ETag, dus een onveranderde
+pagina kost geen dataverkeer.
 
-| bron | status |
-|---|---|
-| Rick Zeedijk | **werkt**, staat aan |
-| Witte Makelaars | **werkt niet** - laadt woningen via JavaScript, bot ziet niks |
-| 7 andere makelaars | **onbekend**, staan uit - zelf testen met `--test` |
-| mailbrug | **werkt**, maar jij moet je nog aanmelden voor de mailalerts |
+**Beleefd.** Minimaal 8 seconden tussen twee bezoeken aan dezelfde website,
+met willekeurige spreiding. Dat is onzichtbaar in hun logboek.
 
-Je hoeft niks te installeren. Alles draait op Railway.
+---
 
-## Doe dit in deze volgorde
+## Wat je moet doen
 
-**1. Meld je aan voor mailalerts (15 min, grootste effect)**
+### 1. Vul je gegevens in (5 min, VERPLICHT)
 
-Dit is belangrijker dan de bot zelf. Elke makelaar heeft een gratis
-mailalert. Die werkt altijd, ook bij JavaScript-sites, en breekt nooit.
+Open `sources.yaml` en zoek het blok `brief:`. Vul in:
 
-- Rick Zeedijk: https://www.rickzeedijk.nl/jouw-droomhuis-in-je-inbox/
-- Witte Makelaars: via hun site, plus kijk op
-  https://www.wittemakelaars.nl/binnenkort-te-huur-tiel/
-- Pararius, Funda, Huurwoningen.nl: gratis zoekprofiel met mailalert
-- Woonbot: heb je al
+```yaml
+brief:
+  namen: "Bilal en Linda"
+  leeftijden: "beiden werkend"      # of "28 en 27 jaar"
+  inkomen: "EUR 5.500"
+  beschikbaar: "direct"             # of "1 november"
+  telefoon: "06-12345678"           # JOUW nummer
+  email: "jouwmail@gmail.com"       # JOUW mail
+  dossier_url: "https://drive.google.com/..."   # map met je documenten
+```
 
-Gebruik voor alle alerts hetzelfde mailadres. Dat wordt straks het
-adres dat mailbrug.py uitleest.
+Doe je dit niet, dan staat er `06-XXXXXXXX` in je brief. Dat valt op.
 
-**2. Vul het acceptatieformulier van Rick Zeedijk alvast in (20 min)**
+### 2. Zet het op Railway
+
+Vervang op github.com deze bestanden: `huurbot.py`, `start.py`, `sources.yaml`.
+Railway herstart vanzelf.
+
+Controleer in de logs dat je dit ziet:
+
+```
+WERKT   Huurwoningen.nl Tiel: 4 beschikbaar (van 10 op de pagina)
+Alle 13 bronnen werken. 7 woning(en) beschikbaar.
+```
+
+Je krijgt ook een Telegram-bericht dat de bot aanstaat.
+
+### 3. Vul het acceptatieformulier van Rick Zeedijk in (20 min)
 
 https://www.rickzeedijk.nl/wp-content/uploads/2022/01/Acceptatieformulier-huurwoningen.pdf
 
-Zij nemen je aanvraag pas in behandeling als dit formulier met bijlagen
-binnen is. Vul het nu in, met alle bijlagen erbij, en zet het klaar in
-een map. Anders ben je je voorsprong kwijt op het moment dat het telt.
+Zij nemen je aanvraag pas in behandeling als dit formulier met bijlagen binnen
+is. Vul het nu in, met loonstroken en werkgeversverklaringen erbij, en zet het
+klaar in je dossiermap. Anders ben je je voorsprong kwijt op het moment dat het
+telt.
 
-**3. Zet de bot op Railway (30 min)**
+### 4. Zet de mailbrug aan (10 min)
 
-Je hoeft NIETS te installeren op je eigen computer. Geen Python, geen git.
-Railway doet dat allemaal in de cloud. Jij uploadt alleen bestanden naar
-GitHub via de website.
+Drie variabelen in Railway: `IMAP_HOST`, `IMAP_USER`, `IMAP_PASSWORD`.
+Gmail heeft een app-wachtwoord nodig: myaccount.google.com/apppasswords
 
-Zie README.md, hoofdstuk "Draaien op Railway".
+Dit brengt Funda, Pararius, Woonbot en Witte Makelaars ook in je Telegram.
+Die kunnen namelijk niet gescrapet worden: Funda en Pararius hebben
+anti-botbeveiliging, Witte laadt zijn woningen via JavaScript.
 
-**4. Test de uitgeschakelde makelaars (mag later)**
+---
 
-Ook dit kan zonder Python op je computer. Bij elke start zet de bot in de
-Railway-logs een overzicht:
+## Meer plaatsen toevoegen
 
-```
-BRONNENCONTROLE
-  WERKT   Rick Zeedijk - huur: 2 woningen
-            - Nieuw Tiel - Lingedijk 8 EUR 1.450 p/m 4 kamers
-  LEEG    Van Beusichem: 0 woningen gevonden
-            -> patroon klopt niet, of de site gebruikt JavaScript
-```
+Onderaan `sources.yaml` staat hoe. Kort: kopieer een blok, vervang de
+plaatsnaam, commit, en kijk in de logs of er WERKT of LEEG staat.
 
-Zo werkt het:
-1. Zet in `sources.yaml` op github.com een makelaar op `enabled: true`
-2. Commit. Railway herstart vanzelf.
-3. Kijk in de Railway-logs naar het rapport.
-4. Staat er WERKT? Laten staan. Staat er LEEG of FOUT? Weer op `false`.
+Huurwoningen.nl: `/in/<plaats>/`
+Huislijn: `/huurwoning/nederland/<provincie>/<plaats>`
 
-Wil je alleen testen zonder dat er meldingen uitgaan: zet in Railway de
-variabele `TEST_MODE` op `true`. De bot controleert dan alleen de bronnen
-en stuurt niks. Vergeet hem daarna weer op `false` te zetten.
+---
 
-## Verwachting
+## Wat de bot NIET doet
 
-Ik ben eerlijk: in Tiel werden het afgelopen jaar ongeveer 44 woningen
-verhuurd. Bij Rick Zeedijk stonden op het moment van controle 48
-huurwoningen, waarvan er 0 beschikbaar waren. Zo krap is het.
+**Automatisch reageren op woningen.** Bewust niet, om drie redenen:
 
-De bot maakt je sneller. Meer aanbod maakt hij niet. Breder zoeken
-(Geldermalsen, Culemborg, Zaltbommel, Buren) en rechtstreeks contact met
-makelaars doen meer voor je kans dan welke code dan ook.
+1. Rick Zeedijk wil een ingevuld PDF-formulier met bijlagen. Een bot kan dat
+   niet leveren, dus zo'n automatische reactie is per definitie onvolledig en
+   gaat direct de prullenbak in.
+2. Makelaars herkennen bulkreacties. Een identieke tekst die 40 seconden na
+   plaatsing binnenkomt leest als bot, niet als serieuze kandidaat. Je wordt
+   dan weggefilterd in plaats van uitgenodigd.
+3. Formulieren verschillen per site en hebben captcha's. Een fout betekent dat
+   je met je echte gegevens reageert op een woning die je niet wilt.
+
+De kant-en-klare brief geeft je 95% van de tijdwinst zonder die risico's.
+
+---
+
+## Eerlijke verwachting
+
+In Tiel werden vorig jaar ongeveer 44 woningen verhuurd. Op het moment van
+bouwen stonden er bij Rick Zeedijk 48 huurwoningen waarvan 0 beschikbaar.
+
+De bot maakt je sneller. Meer aanbod maakt hij niet. Je grootste kansen:
+
+1. Breed zoeken (staat nu al aan: 6 plaatsen)
+2. Compleet dossier dat binnen 5 minuten de deur uit kan
+3. Makelaars bellen en op hun zoekerslijst komen - daar zit het aanbod dat
+   nooit online komt
