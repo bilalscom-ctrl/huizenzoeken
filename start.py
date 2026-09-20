@@ -52,25 +52,38 @@ def bronnen_rapport(huurbot, sources):
         naam = source["name"]
         try:
             html = huurbot.fetch(source["url"])
+            # rauw = alles wat op het patroon past, nog ZONDER exclude_text
+            rauw_bron = {k: v for k, v in source.items()
+                         if k not in ("exclude_text", "require_text")}
+            rauw = huurbot.extract_listings(html, rauw_bron)
             gevonden = huurbot.extract_listings(html, source)
         except Exception as e:  # noqa: BLE001
             banner(f"  FOUT    {naam}: {e}")
+            banner("            -> site onbereikbaar of blokkeert Railway")
             stuk += 1
             continue
 
         if gevonden:
-            banner(f"  WERKT   {naam}: {len(gevonden)} woningen")
+            banner(f"  WERKT   {naam}: {len(gevonden)} beschikbaar "
+                   f"(van {len(rauw)} op de pagina)")
             for label in list(gevonden.values())[:3]:
                 banner(f"            - {label[:60]}")
+        elif rauw:
+            # Dit is GOED NIEUWS: de site werkt, er is alleen nu niks vrij.
+            banner(f"  OK      {naam}: {len(rauw)} woningen gezien, "
+                   f"0 beschikbaar")
+            banner("            -> site werkt prima, alles is verhuurd/verkocht")
+            for label in list(rauw.values())[:2]:
+                banner(f"            - {label[:60]}")
         else:
-            banner(f"  LEEG    {naam}: 0 woningen gevonden")
+            banner(f"  LEEG    {naam}: geen enkele link past op het patroon")
             banner("            -> patroon klopt niet, of de site gebruikt JavaScript")
             stuk += 1
         time.sleep(1.5)
 
     banner("=" * 52)
     if stuk:
-        banner(f"{stuk} van de {len(sources)} bronnen geeft niks. Zie README stap 5.")
+        banner(f"{stuk} van de {len(sources)} bronnen is stuk. Zie README stap 5.")
     else:
         banner("Alle bronnen werken.")
     banner("=" * 52)
