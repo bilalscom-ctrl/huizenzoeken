@@ -1,0 +1,12 @@
+heartbeat_hours: 12
+filter: {enabled: true, max_price: 1650, min_price: 600, min_rooms: 3}
+enrich: false
+schedule: {fast_seconds: 60, slow_seconds: 600, fast_from_hour: 7, fast_until_hour: 21}
+sources:
+  - name: Werkende makelaar
+    url: http://localhost:8799/woningen/huur/
+    link_pattern: "/woning/"
+    exclude_text: ["verhuurd", "verkocht", "k.k."]
+  - name: JavaScript-site
+    url: http://localhost:8799/leeg/
+    link_pattern: "/woning/"
