@@ -1,199 +1,154 @@
-# ============================================================
-#  huurbot v3 - bronnen en instellingen
-#  Alle actieve bronnen zijn op 20-09-2026 echt gecontroleerd.
-# ============================================================
-
-# ---------- Snelheid en beleefdheid ----------
 schedule:
-  fast_seconds: 60          # overdag: elke minuut een ronde
-  slow_seconds: 600         # 's nachts: elke 10 minuten
+  fast_seconds: 60
+  slow_seconds: 600
   fast_from_hour: 7
   fast_until_hour: 21
   fast_on_weekdays_only: false
-
-# Minimaal aantal seconden tussen twee verzoeken aan DEZELFDE website.
-# Hiermee blijf je onder de radar. Lager zetten levert geen snellere
-# meldingen op, alleen een grotere kans op een blokkade.
 min_seconds_per_site: 8
-
 heartbeat_hours: 12
 mail_interval_seconds: 20
-
-# ---------- Filter ----------
-# Bij twijfel meldt de bot ALTIJD. Alleen wat zeker buiten bereik valt
-# wordt overgeslagen.
 filter:
   enabled: true
   max_price: 1650
   min_price: 600
   min_rooms: 3
-  # Woorden die de woning voor jullie onbruikbaar maken. Worden ook
-  # op de detailpagina gezocht, niet alleen in de titel.
   exclude_keywords:
-    - "woningruil"          # daarvoor moet je zelf al een huurwoning hebben
-    - "studentenwoning"
-    - "alleen voor studenten"
-    - "65 jaar en ouder"
-    - "seniorenwoning"
-    - "antikraak"
-
-enrich: true                # haalt prijs, kamers en adres van de detailpagina
-
-reply_reminder: "Reageer nu. De brief hieronder kun je kopieren en plakken."
-
-# ---------- Je reactiebrief ----------
-# VUL DIT IN. De bot zet adres en huurprijs er automatisch in en stuurt
-# de brief als los Telegram-bericht, zodat je hem met lang indrukken in
-# een keer kunt kopieren.
+  - woningruil
+  - studentenwoning
+  - alleen voor studenten
+  - 65 jaar en ouder
+  - seniorenwoning
+  - antikraak
+enrich: true
+reply_reminder: Reageer nu. De brief hieronder kun je kopieren en plakken.
 brief:
   enabled: true
-  namen: "Bilal en Linda"
-  leeftijden: "beiden werkend"
-  inkomen: "EUR 5.500"
-  beschikbaar: "direct"
-  telefoon: "06-XXXXXXXX"
-  email: "jouwmail@voorbeeld.nl"
-  dossier_url: ""           # link naar je Drive/Dropbox-map met documenten
-
-  # Wil je een eigen tekst? Gebruik {adres} {prijs} {namen} {inkomen}
-  # {beschikbaar} {telefoon} {email} {leeftijden} {url}.
-  # Leeg laten = de standaardbrief hierboven in huurbot.py.
-  tekst: ""
+  namen: Bilal en Linda
+  leeftijden: beiden werkend
+  inkomen: EUR 5.500
+  beschikbaar: direct
+  telefoon: 06-XXXXXXXX
+  email: jouwmail@voorbeeld.nl
+  dossier_url: ''
+  tekst: ''
+# ============================================================
+#  LET OP - gecontroleerd op Railway, 20-09-2026
+#
+#  Huurwoningen.nl en Huislijn.nl geven HTTP 403 vanaf Railway.
+#  Zij blokkeren datacenter-IP's. Vanaf een gewone thuisverbinding
+#  werken ze wel. Daarom staan ze hier UIT.
+#
+#  Wil je ze toch? Draai de bot dan thuis op een oude laptop of
+#  Raspberry Pi en zet ze daar op enabled: true.
+#
+#  Op Railway is de MAILBRUG je kanaal: meld je aan voor de gratis
+#  mailalerts van die sites, dan komen ze alsnog in je Telegram.
+# ============================================================
 
 sources:
-
-  # ==========================================================
-  #  HUURWONINGEN.NL - grootste aanbod, gecontroleerd 20-09-2026
-  #  Let op: "woningruil" wordt weggefilterd, want daarvoor moet je
-  #  zelf al een huurwoning hebben.
-  # ==========================================================
-
-  - name: Huurwoningen.nl Tiel
-    url: https://www.huurwoningen.nl/in/tiel/
-    link_pattern: "huurwoningen\\.nl/huren/[a-z0-9-]+/[0-9a-f]{6,}/"
-    exclude_text: ["woningruil"]
-    enabled: true
-
-  - name: Huurwoningen.nl Culemborg
-    url: https://www.huurwoningen.nl/in/culemborg/
-    link_pattern: "huurwoningen\\.nl/huren/[a-z0-9-]+/[0-9a-f]{6,}/"
-    exclude_text: ["woningruil"]
-    enabled: true
-
-  - name: Huurwoningen.nl Zaltbommel
-    url: https://www.huurwoningen.nl/in/zaltbommel/
-    link_pattern: "huurwoningen\\.nl/huren/[a-z0-9-]+/[0-9a-f]{6,}/"
-    exclude_text: ["woningruil"]
-    enabled: true
-
-  - name: Huurwoningen.nl Geldermalsen
-    url: https://www.huurwoningen.nl/in/geldermalsen/
-    link_pattern: "huurwoningen\\.nl/huren/[a-z0-9-]+/[0-9a-f]{6,}/"
-    exclude_text: ["woningruil"]
-    enabled: true
-
-  - name: Huurwoningen.nl Wijchen
-    url: https://www.huurwoningen.nl/in/wijchen/
-    link_pattern: "huurwoningen\\.nl/huren/[a-z0-9-]+/[0-9a-f]{6,}/"
-    exclude_text: ["woningruil"]
-    enabled: true
-
-  - name: Huurwoningen.nl Veenendaal
-    url: https://www.huurwoningen.nl/in/veenendaal/
-    link_pattern: "huurwoningen\\.nl/huren/[a-z0-9-]+/[0-9a-f]{6,}/"
-    exclude_text: ["woningruil"]
-    enabled: true
-
-  # ==========================================================
-  #  HUISLIJN.NL - verzamelsite, gecontroleerd 20-09-2026
-  # ==========================================================
-
-  - name: Huislijn Tiel
-    url: https://www.huislijn.nl/huurwoning/nederland/gelderland/tiel
-    link_pattern: "huislijn\\.nl/huurwoning/nederland/[a-z-]+/[0-9]+/"
-    enabled: true
-
-  - name: Huislijn Culemborg
-    url: https://www.huislijn.nl/huurwoning/nederland/gelderland/culemborg
-    link_pattern: "huislijn\\.nl/huurwoning/nederland/[a-z-]+/[0-9]+/"
-    enabled: true
-
-  - name: Huislijn Zaltbommel
-    url: https://www.huislijn.nl/huurwoning/nederland/gelderland/zaltbommel
-    link_pattern: "huislijn\\.nl/huurwoning/nederland/[a-z-]+/[0-9]+/"
-    enabled: true
-
-  - name: Huislijn Geldermalsen
-    url: https://www.huislijn.nl/huurwoning/nederland/gelderland/geldermalsen
-    link_pattern: "huislijn\\.nl/huurwoning/nederland/[a-z-]+/[0-9]+/"
-    enabled: true
-
-  - name: Huislijn Buren
-    url: https://www.huislijn.nl/huurwoning/nederland/gelderland/buren
-    link_pattern: "huislijn\\.nl/huurwoning/nederland/[a-z-]+/[0-9]+/"
-    enabled: true
-
-  # ==========================================================
-  #  LOKALE MAKELAAR - gecontroleerd 20-09-2026
-  # ==========================================================
-
-  - name: Rick Zeedijk huur
-    url: https://www.rickzeedijk.nl/woningen/huur/
-    link_pattern: "rickzeedijk\\.nl/woning/"
-    exclude_text: ["verhuurd", "verkocht", "onder bod", "ingetrokken", "k.k.", "v.o.n."]
-    enabled: true
-
-  - name: Rick Zeedijk homepage
-    url: https://www.rickzeedijk.nl/
-    link_pattern: "rickzeedijk\\.nl/woning/"
-    exclude_text: ["verhuurd", "verkocht", "onder bod", "k.k.", "v.o.n."]
-    enabled: true
-
-  # ==========================================================
-  #  MEER PLAATSEN TOEVOEGEN
-  # ==========================================================
-  # Kopieer een blok hierboven en vervang de plaatsnaam.
-  # Huurwoningen.nl gebruikt: /in/<plaats>/
-  #   bv. rhenen, wageningen, oss, den-bosch, rosmalen, ede, zeist
-  # Huislijn gebruikt: /huurwoning/nederland/<provincie>/<plaats>
-  #   bv. gelderland/kesteren, utrecht/wijk-bij-duurstede,
-  #       zuid-holland/leerdam, gelderland/druten
-  #
-  # Voeg ze een voor een toe en kijk in de Railway-logs of er WERKT staat.
-
-  # ==========================================================
-  #  NIET GEBRUIKEN
-  # ==========================================================
-
-  # Witte Makelaars: laadt woningen via JavaScript. De bot ziet niks.
-  # Niet op te lossen. Meld je aan voor hun mailalert.
-  - name: Witte Makelaars
-    url: https://www.wittemakelaars.nl/aanbod/woningaanbod/huur/
-    link_pattern: "/aanbod/woningaanbod/.+/huis-"
-    enabled: false
-
-  # Het Makelaarshuys: verbiedt geautomatiseerd bezoek in robots.txt.
-  # Dat respecteren we. Gebruik hun mailalert.
-  - name: Het Makelaarshuys Tiel
-    url: https://www.hetmakelaarshuys.com/aanbod/woningaanbod/
-    link_pattern: "/aanbod/woningaanbod/.+/huis-"
-    enabled: false
-
-  # Nog niet gecontroleerd. Zet op true en kijk in de logs.
-  - name: Van Beusichem Makelaars
-    url: https://www.vanbeusichem.nl/aanbod/woningaanbod/huur/
-    link_pattern: "/aanbod/woningaanbod/.+/huis-"
-    exclude_text: ["verhuurd", "verkocht", "k.k.", "v.o.n."]
-    enabled: false
-
-  - name: NederWoon Gelderland
-    url: https://www.nederwoon.nl/huurwoningen/gelderland
-    link_pattern: "/huurwoningen/[a-z-]+/[0-9]+"
-    exclude_text: ["verhuurd"]
-    enabled: false
-
-  - name: 123Wonen Nijmegen
-    url: https://www.123wonen.nl/huurwoningen/in/nijmegen
-    link_pattern: "/huurwoningen/.+/[0-9]"
-    exclude_text: ["verhuurd"]
-    enabled: false
+- name: Huurwoningen.nl Tiel
+  url: https://www.huurwoningen.nl/in/tiel/
+  link_pattern: huurwoningen\.nl/huren/[a-z0-9-]+/[0-9a-f]{6,}/
+  exclude_text:
+  - woningruil
+  enabled: false
+- name: Huurwoningen.nl Culemborg
+  url: https://www.huurwoningen.nl/in/culemborg/
+  link_pattern: huurwoningen\.nl/huren/[a-z0-9-]+/[0-9a-f]{6,}/
+  exclude_text:
+  - woningruil
+  enabled: false
+- name: Huurwoningen.nl Zaltbommel
+  url: https://www.huurwoningen.nl/in/zaltbommel/
+  link_pattern: huurwoningen\.nl/huren/[a-z0-9-]+/[0-9a-f]{6,}/
+  exclude_text:
+  - woningruil
+  enabled: false
+- name: Huurwoningen.nl Geldermalsen
+  url: https://www.huurwoningen.nl/in/geldermalsen/
+  link_pattern: huurwoningen\.nl/huren/[a-z0-9-]+/[0-9a-f]{6,}/
+  exclude_text:
+  - woningruil
+  enabled: false
+- name: Huurwoningen.nl Wijchen
+  url: https://www.huurwoningen.nl/in/wijchen/
+  link_pattern: huurwoningen\.nl/huren/[a-z0-9-]+/[0-9a-f]{6,}/
+  exclude_text:
+  - woningruil
+  enabled: false
+- name: Huurwoningen.nl Veenendaal
+  url: https://www.huurwoningen.nl/in/veenendaal/
+  link_pattern: huurwoningen\.nl/huren/[a-z0-9-]+/[0-9a-f]{6,}/
+  exclude_text:
+  - woningruil
+  enabled: false
+- name: Huislijn Tiel
+  url: https://www.huislijn.nl/huurwoning/nederland/gelderland/tiel
+  link_pattern: huislijn\.nl/huurwoning/nederland/[a-z-]+/[0-9]+/
+  enabled: false
+- name: Huislijn Culemborg
+  url: https://www.huislijn.nl/huurwoning/nederland/gelderland/culemborg
+  link_pattern: huislijn\.nl/huurwoning/nederland/[a-z-]+/[0-9]+/
+  enabled: false
+- name: Huislijn Zaltbommel
+  url: https://www.huislijn.nl/huurwoning/nederland/gelderland/zaltbommel
+  link_pattern: huislijn\.nl/huurwoning/nederland/[a-z-]+/[0-9]+/
+  enabled: false
+- name: Huislijn Geldermalsen
+  url: https://www.huislijn.nl/huurwoning/nederland/gelderland/geldermalsen
+  link_pattern: huislijn\.nl/huurwoning/nederland/[a-z-]+/[0-9]+/
+  enabled: false
+- name: Huislijn Buren
+  url: https://www.huislijn.nl/huurwoning/nederland/gelderland/buren
+  link_pattern: huislijn\.nl/huurwoning/nederland/[a-z-]+/[0-9]+/
+  enabled: false
+- name: Rick Zeedijk huur
+  url: https://www.rickzeedijk.nl/woningen/huur/
+  link_pattern: rickzeedijk\.nl/woning/
+  exclude_text:
+  - verhuurd
+  - verkocht
+  - onder bod
+  - ingetrokken
+  - k.k.
+  - v.o.n.
+  enabled: true
+- name: Rick Zeedijk homepage
+  url: https://www.rickzeedijk.nl/
+  link_pattern: rickzeedijk\.nl/woning/
+  exclude_text:
+  - verhuurd
+  - verkocht
+  - onder bod
+  - k.k.
+  - v.o.n.
+  enabled: true
+- name: Witte Makelaars
+  url: https://www.wittemakelaars.nl/aanbod/woningaanbod/huur/
+  link_pattern: /aanbod/woningaanbod/.+/huis-
+  enabled: false
+- name: Het Makelaarshuys Tiel
+  url: https://www.hetmakelaarshuys.com/aanbod/woningaanbod/
+  link_pattern: /aanbod/woningaanbod/.+/huis-
+  enabled: false
+- name: Van Beusichem Makelaars
+  url: https://www.vanbeusichem.nl/aanbod/woningaanbod/huur/
+  link_pattern: /aanbod/woningaanbod/.+/huis-
+  exclude_text:
+  - verhuurd
+  - verkocht
+  - k.k.
+  - v.o.n.
+  enabled: false
+- name: NederWoon Gelderland
+  url: https://www.nederwoon.nl/huurwoningen/gelderland
+  link_pattern: /huurwoningen/[a-z-]+/[0-9]+
+  exclude_text:
+  - verhuurd
+  enabled: false
+- name: 123Wonen Nijmegen
+  url: https://www.123wonen.nl/huurwoningen/in/nijmegen
+  link_pattern: /huurwoningen/.+/[0-9]
+  exclude_text:
+  - verhuurd
+  enabled: false
