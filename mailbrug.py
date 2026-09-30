@@ -21,6 +21,7 @@ Gebruik:
 """
 
 import argparse
+import base64
 import email
 import imaplib
 import json
@@ -157,19 +158,68 @@ def body_of(msg):
 
 def unwrap_tracking(url):
     """
-    Alertmails verstoppen de echte link vaak achter een klikteller.
-    Zoekt in de querystring naar een ingepakte http-url en pakt die.
+    Alertmails verstoppen de echte link achter een klikteller.
+    Drie manieren om die eruit te halen:
+      1. de echte url staat in een parameter (?url=https%3A%2F%2F...)
+      2. de echte url staat base64-gecodeerd in het pad
+      3. de url staat dubbel ge-encodeerd ergens in de string
     """
     try:
-        qs = parse_qs(urlparse(url).query)
+        parsed = urlparse(url)
+        qs = parse_qs(parsed.query)
     except ValueError:
         return url
-    for key in ("url", "u", "target", "redirect", "link", "dest", "r"):
+
+    # 1. parameters
+    for key in ("url", "u", "target", "redirect", "link", "dest", "r", "d",
+                "uri", "to", "goto", "out", "destination", "redir", "ref"):
         if key in qs and qs[key]:
-            candidate = unquote(qs[key][0])
-            if candidate.startswith("http"):
-                return candidate
+            kandidaat = unquote(qs[key][0])
+            if kandidaat.startswith("http"):
+                return kandidaat
+
+    # 2. base64 in het pad (veel nieuwsbriefdiensten doen dit)
+    for stuk in parsed.path.split("/"):
+        if len(stuk) < 16:
+            continue
+        kern = stuk.split(".")[0].replace("-", "+").replace("_", "/")
+        kern += "=" * (-len(kern) % 4)
+        try:
+            ontcijferd = base64.b64decode(kern).decode("utf-8", "ignore")
+        except Exception:  # noqa: BLE001
+            continue
+        m = re.search(r"https?://[^\s\"'<>]+", ontcijferd)
+        if m:
+            return m.group(0)
+
+    # 3. een ingepakte url ergens in de hele string
+    m = re.search(r"(https?%3A%2F%2F[^&\s]+)", url, re.I)
+    if m:
+        kandidaat = unquote(m.group(1))
+        if kandidaat.startswith("http"):
+            return kandidaat
+
     return url
+
+
+def volg_redirect(url, timeout=8):
+    """
+    Laatste redmiddel: de klikteller gewoon volgen en kijken waar hij uitkomt.
+    Alleen gebruikt als het uitpakken niet lukte.
+    """
+    try:
+        r = requests.head(url, allow_redirects=True, timeout=timeout,
+                          headers={"User-Agent": "Mozilla/5.0"})
+        if r.url and r.url != url:
+            return r.url
+        # sommige servers doen geen HEAD; dan een GET zonder body te lezen
+        r = requests.get(url, allow_redirects=True, timeout=timeout, stream=True,
+                         headers={"User-Agent": "Mozilla/5.0"})
+        eind = r.url
+        r.close()
+        return eind or url
+    except requests.RequestException:
+        return url
 
 
 def extract_links(html, text):
@@ -192,6 +242,35 @@ def extract_links(html, text):
             if key not in urls or len(label) > len(urls[key]):
                 urls[key] = label[:160]
 
+    # VANGNET: geen woninglinks herkend, maar er waren wel kliktellers?
+    # Dan die volgen en kijken waar ze uitkomen. Maximaal 6, want dit
+    # kost netwerkverzoeken.
+    if not urls and html:
+        soup = BeautifulSoup(html, "html.parser")
+        kandidaten = []
+        for a in soup.find_all("a", href=True):
+            href = a["href"].strip()
+            if not href.startswith("http") or JUNK.search(href):
+                continue
+            label = " ".join(a.get_text(" ", strip=True).split())
+            kandidaten.append((href, label))
+
+        gezien = set()
+        for href, label in kandidaten[:12]:
+            if href in gezien:
+                continue
+            gezien.add(href)
+            echt = volg_redirect(href)
+            if JUNK.search(echt) or not LOOKS_LIKE_LISTING.search(echt):
+                continue
+            key = echt.split("?")[0].rstrip("/")
+            if key not in urls or len(label) > len(urls[key]):
+                urls[key] = label[:160]
+            if len(urls) >= 6:
+                break
+        if urls:
+            log(f"  {len(urls)} woning(en) gevonden via redirect volgen")
+
     if not urls and text:
         for m in re.finditer(r"https?://[^\s<>\"')]+", text):
             real = unwrap_tracking(m.group(0))
@@ -200,6 +279,36 @@ def extract_links(html, text):
             urls.setdefault(real.split("?")[0].rstrip("/"), "")
 
     return urls
+
+
+def past_bij_regio(cfg, url, label, subject):
+    """
+    Controleert of de woning in jouw zoekgebied ligt.
+
+    Alertmails van Funda en Pararius bevatten vaak woningen ver buiten je
+    straal. De plaatsnaam staat meestal in de URL
+    (funda.nl/detail/huur/UDEN/appartement-...), anders in de tekst.
+    """
+    f = cfg.get("mail_filter", {}) or {}
+    if not f.get("enabled", False):
+        return True, ""
+
+    blob = f"{url} {label} {subject}".lower()
+
+    # Eerst de blokkeerlijst: expliciet ongewenste plaatsen
+    for plaats in (f.get("blokkeer_plaatsen") or []):
+        if plaats.lower() in blob:
+            return False, f"plaats {plaats}"
+
+    plaatsen = [p.lower() for p in (f.get("plaatsen") or [])]
+    if not plaatsen:
+        return True, ""
+
+    for p in plaatsen:
+        if p in blob:
+            return True, ""
+
+    return False, "buiten zoekgebied"
 
 
 def is_alert(sender, subject):
@@ -314,6 +423,11 @@ def check_once(conn, seen, cfg, announce=True, limit=10):
             seen.add(url)
             if not announce:
                 continue
+
+            ok, reden = past_bij_regio(cfg, url, label, subject)
+            if not ok:
+                log(f"  overgeslagen ({reden}): {url[:70]}")
+                continue
             sent += 1
             log(f"MAIL-ALERT [{source_name}] {label or url}")
             body = label or subject
@@ -324,10 +438,74 @@ def check_once(conn, seen, cfg, announce=True, limit=10):
     return sent
 
 
+def diagnose(conn, cfg, aantal=25):
+    """
+    Loopt de laatste mails langs en zegt per mail precies wat er gebeurt.
+    Verstuurt niets. Zo zie je in de Railway-logs waarom iets wel of niet
+    doorkomt.
+    """
+    log("=" * 58)
+    log(f"DIAGNOSE - laatste {aantal} mails, er wordt NIETS verstuurd")
+    log("=" * 58)
+
+    conn.noop()
+    typ, data = conn.search(None, "ALL")
+    ids = data[0].split()[-aantal:]
+
+    tellers = {"geen alert": 0, "geen links": 0, "buiten regio": 0, "zou melden": 0}
+
+    for msg_id in ids:
+        typ, raw = conn.fetch(msg_id, "(BODY.PEEK[])")
+        if typ != "OK" or not raw or not raw[0]:
+            continue
+        msg = email.message_from_bytes(raw[0][1])
+        sender = decode(msg.get("From"))
+        subject = decode(msg.get("Subject"))
+        afz = re.sub(r".*<|>.*", "", sender).split("@")[-1] or sender
+
+        if not is_alert(sender, subject):
+            tellers["geen alert"] += 1
+            log(f"  GEEN ALERT   [{afz[:22]}] {subject[:44]}")
+            continue
+
+        html, text = body_of(msg)
+        links = extract_links(html, text)
+
+        if not links:
+            tellers["geen links"] += 1
+            log(f"  GEEN LINKS   [{afz[:22]}] {subject[:44]}")
+            log("                 -> kliktellers niet uit te pakken")
+            continue
+
+        door, weg = [], []
+        for url, label in links.items():
+            ok, reden = past_bij_regio(cfg, url, label, subject)
+            (door if ok else weg).append((url, reden))
+
+        log(f"  ALERT        [{afz[:22]}] {subject[:44]}")
+        log(f"                 {len(links)} link(s): {len(door)} in regio, "
+            f"{len(weg)} erbuiten")
+        for url, _ in door[:3]:
+            log(f"                 DOOR: {url[:62]}")
+        for url, reden in weg[:2]:
+            log(f"                 WEG ({reden}): {url[:52]}")
+
+        tellers["zou melden"] += len(door)
+        tellers["buiten regio"] += len(weg)
+
+    log("=" * 58)
+    log(f"SAMENVATTING: {tellers['zou melden']} woningen zouden gemeld worden, "
+        f"{tellers['buiten regio']} buiten regio")
+    log(f"  {tellers['geen alert']} mails niet als alert herkend, "
+        f"{tellers['geen links']} alertmails zonder bruikbare links")
+    log("=" * 58)
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--test", action="store_true", help="toon wat er gevonden wordt, stuur niks")
     ap.add_argument("--init", action="store_true", help="huidige mails onthouden, niet melden")
+    ap.add_argument("--diagnose", action="store_true", help="toon per mail wat er gebeurt")
     args = ap.parse_args()
 
     load_env()
@@ -361,6 +539,12 @@ def main():
         if not hits:
             print("Geen alertmails gevonden in de laatste 30 berichten.")
             print("Check of ALERT_SENDERS bovenin dit bestand jouw afzenders bevat.")
+        conn.logout()
+        return
+
+    if args.diagnose:
+        conn = connect()
+        diagnose(conn, cfg)
         conn.logout()
         return
 

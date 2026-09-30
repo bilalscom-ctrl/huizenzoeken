@@ -166,6 +166,22 @@ def run_mailbrug():
             time.sleep(3600)
 
     cfg = mailbrug.load_cfg()
+
+    # DIAGNOSE_MODE=true: eenmalig tonen wat er met je mails gebeurt,
+    # zonder iets te versturen. Handig om vanuit Railway te kijken
+    # waarom een alert niet doorkomt.
+    if os.environ.get("DIAGNOSE_MODE", "").lower() in ("true", "1", "yes"):
+        banner("DIAGNOSE_MODE staat aan - mailbrug verstuurt niets")
+        try:
+            conn = mailbrug.connect()
+            mailbrug.diagnose(conn, cfg)
+            conn.logout()
+        except Exception as e:  # noqa: BLE001
+            banner(f"diagnose mislukt: {e}")
+        banner("Diagnose klaar. Zet DIAGNOSE_MODE op false om te gaan draaien.")
+        while True:
+            time.sleep(3600)
+
     seen = mailbrug.load_seen()
     interval = int(cfg.get("mail_interval_seconds", 20))
     eerste = not mailbrug.STATE_FILE.exists()

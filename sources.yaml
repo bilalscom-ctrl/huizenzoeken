@@ -5,6 +5,45 @@ schedule:
   fast_until_hour: 21
   fast_on_weekdays_only: false
 min_seconds_per_site: 8
+
+# ---------- Plaatsfilter voor de MAILBRUG ----------
+# Funda en Pararius sturen alerts voor woningen ver buiten je straal.
+# Alleen woningen waarvan de plaatsnaam hieronder voorkomt worden
+# doorgestuurd naar Telegram.
+#
+# Wil je tijdelijk alles zien? Zet enabled op false.
+mail_filter:
+  enabled: true
+  plaatsen:
+    - tiel
+    - culemborg
+    - zaltbommel
+    - geldermalsen
+    - buren
+    - tricht
+    - beesd
+    - wadenoijen
+    - kerk-avezaath
+    - zoelen
+    - ijzendoorn
+    - echteld
+    - ophemert
+    - waardenburg
+    - neerijnen
+    - leerdam
+    - kesteren
+    - opheusden
+    - maurik
+    - lienden
+    - ochten
+    - druten
+    - beneden-leeuwen
+    - wijk-bij-duurstede
+    - vianen
+    - west-betuwe
+  # Plaatsen die je NOOIT wilt zien, ook niet als ze toevallig matchen
+  blokkeer_plaatsen: []
+
 heartbeat_hours: 12
 mail_interval_seconds: 20
 filter:
@@ -23,10 +62,10 @@ enrich: true
 reply_reminder: Reageer nu. De brief hieronder kun je kopieren en plakken.
 brief:
   enabled: true
-  namen: Bilal en Linda
-  leeftijden: beiden werkend
-  inkomen: EUR 5.500
-  beschikbaar: direct
+  namen: "Bilal en Linda"
+  leeftijden: "beiden werkend"
+  inkomen: "EUR 5.500"
+  beschikbaar: "direct"
   telefoon: "06-54119051"
   email: "bilallindahuis123@gmail.com"
   dossier_url: ''
