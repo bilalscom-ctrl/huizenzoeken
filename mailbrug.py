@@ -311,6 +311,51 @@ def past_bij_regio(cfg, url, label, subject):
     return False, "buiten zoekgebied"
 
 
+def mail_tekst(html, text, limiet=4000):
+    """Platte tekst van de mail, om de plaatsnaam in te kunnen zoeken."""
+    if html:
+        try:
+            soup = BeautifulSoup(html, "html.parser")
+            for tag in soup(["script", "style"]):
+                tag.decompose()
+            return " ".join(soup.get_text(" ", strip=True).split())[:limiet]
+        except Exception:  # noqa: BLE001
+            pass
+    return (text or "")[:limiet]
+
+
+def beste_link(html, text, afzender_domein=""):
+    """
+    Laatste redmiddel als er geen woninglink herkend is: geef de meest
+    zinnige klikbare link terug. Liever een melding met de zoekpagina
+    dan helemaal geen melding.
+    """
+    kandidaten = []
+    if html:
+        soup = BeautifulSoup(html, "html.parser")
+        for a in soup.find_all("a", href=True):
+            href = a["href"].strip()
+            if not href.startswith("http") or JUNK.search(href):
+                continue
+            label = " ".join(a.get_text(" ", strip=True).split())
+            kandidaten.append((href, label))
+    if not kandidaten and text:
+        for mm in re.finditer(r"https?://[^\s<>\"')]+", text):
+            if not JUNK.search(mm.group(0)):
+                kandidaten.append((mm.group(0), ""))
+
+    if not kandidaten:
+        return None
+
+    # Voorkeur: een link met woorden die op aanbod wijzen
+    for href, label in kandidaten:
+        blob = f"{href} {label}".lower()
+        if any(w in blob for w in ("woning", "huur", "aanbod", "bekijk",
+                                   "zoekopdracht", "resultaat", "kijkje")):
+            return href
+    return kandidaten[0][0]
+
+
 def is_alert(sender, subject):
     blob = f"{sender} {subject}".lower()
     if any(s in blob for s in ALERT_SENDERS):
@@ -411,11 +456,33 @@ def check_once(conn, seen, cfg, announce=True, limit=10):
 
         html, text = body_of(msg)
         links = extract_links(html, text)
-        if not links:
-            log(f"  alertmail zonder woninglinks: {subject[:55]}")
-            continue
-
         source_name = re.sub(r".*<|>.*", "", sender).split("@")[-1] or sender
+
+        if not links:
+            # Geen herkenbare woninglink. Toch melden: het onderwerp zegt
+            # vaak al genoeg ("1 nieuwe huurwoning in Tiel") en met de
+            # zoekpagina erbij kun je zelf doorklikken.
+            terugval = beste_link(html, text, source_name)
+            sleutel = f"onderwerp::{source_name}::{subject}"
+            if sleutel in seen:
+                continue
+            seen.add(sleutel)
+            if not announce:
+                continue
+
+            inhoud = mail_tekst(html, text)
+            ok, reden = past_bij_regio(cfg, terugval or "", subject, inhoud)
+            if not ok:
+                log(f"  overgeslagen ({reden}): {subject[:50]}")
+                continue
+
+            log(f"ALERT ZONDER LINK [{source_name}] {subject[:50]}")
+            body = subject
+            if not terugval:
+                body += "\n\n(geen link gevonden - kijk in je mail)"
+            body += f"\n\n{cfg.get('reply_reminder', 'Reageer nu.')}"
+            notify(f"Via mail: {source_name}", body, terugval)
+            continue
 
         for url, label in links.items():
             if url in seen:
@@ -472,9 +539,16 @@ def diagnose(conn, cfg, aantal=25):
         links = extract_links(html, text)
 
         if not links:
-            tellers["geen links"] += 1
-            log(f"  GEEN LINKS   [{afz[:22]}] {subject[:44]}")
-            log("                 -> kliktellers niet uit te pakken")
+            terugval = beste_link(html, text, afz)
+            ok, reden = past_bij_regio(cfg, terugval or "", subject,
+                                       mail_tekst(html, text))
+            if ok:
+                tellers["zou melden"] += 1
+                log(f"  TERUGVAL     [{afz[:22]}] {subject[:44]}")
+                log(f"                 -> meldt onderwerp + {(terugval or 'geen link')[:44]}")
+            else:
+                tellers["geen links"] += 1
+                log(f"  GEEN LINKS   [{afz[:22]}] {subject[:44]}  ({reden})")
             continue
 
         door, weg = [], []
