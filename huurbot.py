@@ -261,22 +261,65 @@ def parse_rooms(text):
     return None, None
 
 
+# Statuswoorden plakken op sommige sites aan elkaar ("HuurOnder optie"),
+# dus geen woordgrens eisen.
+STATUS_PREFIX = re.compile(
+    r"^\s*(te\s*huur|te\s*koop|onder\s*optie|onder\s*bod|in\s*optie|"
+    r"verhuurd|verkocht|beschikbaar|nieuw|huur|koop)[\s:,.-]*",
+    re.I)
+TYPE_PREFIX = re.compile(
+    r"^\s*(huis|woning|appartement|studio|kamer|penthouse|maisonnette|"
+    r"bovenwoning|benedenwoning|eengezinswoning|tussenwoning|hoekwoning)"
+    r"[\s:,.-]*", re.I)
+
+
+def schoon_label(label):
+    """Haalt statuswoorden als 'HuurTe huur' en 'Nieuw' van het label af."""
+    vorig = None
+    while vorig != label:
+        vorig = label
+        label = STATUS_PREFIX.sub("", label).strip()
+    return label
+
+
 def parse_address(label, url):
     """Probeert het adres uit het label te halen, anders uit de URL."""
+    label = schoon_label(label)
     m = ADDRESS_RE.search(label)
     if m:
         return m.group(1).strip()
+
+    # Geen huisnummer? Dan het woningtype ervoor weghalen en de
+    # eerste paar woorden als straatnaam nemen.
+    zonder_type = TYPE_PREFIX.sub("", label).strip()
+    if zonder_type:
+        woorden = zonder_type.split()
+        straat = " ".join(woorden[:3]).strip(" ,.-")
+        straat = re.split(r"\s+(?:Woonopp|Kamers|EUR|\u20ac)\b", straat)[0].strip()
+        if len(straat) > 3:
+            return straat
     staart = url.rstrip("/").rsplit("/", 1)[-1]
     staart = re.sub(r"^[0-9a-f]{6,}-?", "", staart)
     mooi = staart.replace("-", " ").strip().title()
     return mooi if len(mooi) > 3 else ""
 
 
+def _zoek_makelaar(html, url):
+    """Mailadres van de makelaar, als reageer.py beschikbaar is."""
+    try:
+        import reageer
+        return reageer.vind_makelaar_email(html, url)
+    except Exception:  # noqa: BLE001
+        return None
+
+
 def enrich(url, label, min_gap):
     """Haalt prijs/kamers/adres van de detailpagina. Faalt zacht."""
     tekst = label
+    rauwe_html = None
     try:
         html, _ = fetch(url, timeout=15, min_gap=min_gap, pogingen=2)
+        rauwe_html = html
         if html:
             soup = BeautifulSoup(html, "html.parser")
             for tag in soup(["script", "style", "nav", "footer", "header"]):
@@ -292,6 +335,7 @@ def enrich(url, label, min_gap):
         "rooms": kamers,
         "roomkind": soort,
         "address": parse_address(label, url),
+        "makelaar_email": _zoek_makelaar(rauwe_html, url),
         "_tekst": tekst.lower(),
     }
 
@@ -440,14 +484,30 @@ def meld_woning(cfg, bron, url, label, details):
     if herinnering:
         body += f"\n\n{herinnering.strip()}"
 
+    brief = maak_brief(cfg, details, url)
+
     knoppen = [{"text": "Bekijk woning", "url": url}]
     dossier = (cfg.get("brief", {}) or {}).get("dossier_url")
-    if dossier and dossier.startswith("http"):
-        knoppen.append({"text": "Mijn dossier", "url": dossier})
+    try:
+        import reageer
+        knoppen = reageer.zet_klaar(cfg, {
+            "url": url,
+            "adres": details.get("address") or label[:60],
+            "prijs": details.get("price"),
+            "bron": bron,
+            "makelaar_email": details.get("makelaar_email"),
+            "brief": brief or "",
+        })
+        if details.get("makelaar_email"):
+            body += ("\n\nTik op 'Verstuur reactie' om te mailen naar "
+                     f"{details['makelaar_email']}")
+    except Exception as e:  # noqa: BLE001
+        log(f"  reactieknop niet gelukt ({type(e).__name__})")
+        if dossier and dossier.startswith("http"):
+            knoppen.append({"text": "Mijn dossier", "url": dossier})
 
     notify(cfg, f"Nieuwe woning - {bron}", body, url, knoppen=knoppen)
 
-    brief = maak_brief(cfg, details, url)
     if brief:
         # Aparte pure-tekst melding: in Telegram kun je die in een keer
         # kopieren met lang indrukken. Geen opmaak, anders plak je sterretjes.

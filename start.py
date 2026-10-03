@@ -156,6 +156,31 @@ def run_huurbot():
         time.sleep(max(20, huurbot.current_interval(cfg) + random.uniform(-10, 15)))
 
 
+def run_knoppen():
+    """Luistert of je op 'Verstuur reactie' tikt en mailt dan de makelaar."""
+    import reageer
+
+    if not os.environ.get("TELEGRAM_TOKEN"):
+        banner("knoppen: geen TELEGRAM_TOKEN - overgeslagen")
+        while True:
+            time.sleep(3600)
+
+    banner("knoppen: luistert op 'Verstuur reactie'")
+    while True:
+        try:
+            reageer.verwerk_knoppen(_laad_cfg())
+        except Exception as e:  # noqa: BLE001
+            banner(f"knoppen fout: {type(e).__name__}: {e}")
+            time.sleep(30)
+        time.sleep(5)
+
+
+def _laad_cfg():
+    import huurbot
+    cfg, _ = huurbot.load_sources()
+    return cfg
+
+
 def run_mailbrug():
     import mailbrug
 
@@ -220,6 +245,10 @@ def main():
                                         args=("mailbrug", run_mailbrug), daemon=True))
     else:
         banner("mailbrug staat uit (MAILBRUG_ENABLED=false)")
+
+    if os.environ.get("TEST_MODE", "").lower() not in ("true", "1", "yes"):
+        threads.append(threading.Thread(target=supervise,
+                                        args=("knoppen", run_knoppen), daemon=True))
 
     for t in threads:
         t.start()

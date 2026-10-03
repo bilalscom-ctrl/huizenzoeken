@@ -5,45 +5,36 @@ schedule:
   fast_until_hour: 21
   fast_on_weekdays_only: false
 min_seconds_per_site: 8
-
-# ---------- Plaatsfilter voor de MAILBRUG ----------
-# Funda en Pararius sturen alerts voor woningen ver buiten je straal.
-# Alleen woningen waarvan de plaatsnaam hieronder voorkomt worden
-# doorgestuurd naar Telegram.
-#
-# Wil je tijdelijk alles zien? Zet enabled op false.
 mail_filter:
   enabled: true
   plaatsen:
-    - tiel
-    - culemborg
-    - zaltbommel
-    - geldermalsen
-    - buren
-    - tricht
-    - beesd
-    - wadenoijen
-    - kerk-avezaath
-    - zoelen
-    - ijzendoorn
-    - echteld
-    - ophemert
-    - waardenburg
-    - neerijnen
-    - leerdam
-    - kesteren
-    - opheusden
-    - maurik
-    - lienden
-    - ochten
-    - druten
-    - beneden-leeuwen
-    - wijk-bij-duurstede
-    - vianen
-    - west-betuwe
-  # Plaatsen die je NOOIT wilt zien, ook niet als ze toevallig matchen
+  - tiel
+  - culemborg
+  - zaltbommel
+  - geldermalsen
+  - buren
+  - tricht
+  - beesd
+  - wadenoijen
+  - kerk-avezaath
+  - zoelen
+  - ijzendoorn
+  - echteld
+  - ophemert
+  - waardenburg
+  - neerijnen
+  - leerdam
+  - kesteren
+  - opheusden
+  - maurik
+  - lienden
+  - ochten
+  - druten
+  - beneden-leeuwen
+  - wijk-bij-duurstede
+  - vianen
+  - west-betuwe
   blokkeer_plaatsen: []
-
 heartbeat_hours: 12
 mail_interval_seconds: 20
 filter:
@@ -62,28 +53,14 @@ enrich: true
 reply_reminder: Reageer nu. De brief hieronder kun je kopieren en plakken.
 brief:
   enabled: true
-  namen: "Bilal en Linda"
-  leeftijden: "beiden werkend"
-  inkomen: "EUR 5.500"
-  beschikbaar: "direct"
+  namen: Bilal en Linda
+  leeftijden: beiden werkend
+  inkomen: EUR 5.500
+  beschikbaar: direct
   telefoon: "06-54119051"
   email: "bilallindahuis123@gmail.com"
   dossier_url: ''
   tekst: ''
-# ============================================================
-#  LET OP - gecontroleerd op Railway, 20-09-2026
-#
-#  Huurwoningen.nl en Huislijn.nl geven HTTP 403 vanaf Railway.
-#  Zij blokkeren datacenter-IP's. Vanaf een gewone thuisverbinding
-#  werken ze wel. Daarom staan ze hier UIT.
-#
-#  Wil je ze toch? Draai de bot dan thuis op een oude laptop of
-#  Raspberry Pi en zet ze daar op enabled: true.
-#
-#  Op Railway is de MAILBRUG je kanaal: meld je aan voor de gratis
-#  mailalerts van die sites, dan komen ze alsnog in je Telegram.
-# ============================================================
-
 sources:
 - name: Huurwoningen.nl Tiel
   url: https://www.huurwoningen.nl/in/tiel/
@@ -141,6 +118,30 @@ sources:
   url: https://www.huislijn.nl/huurwoning/nederland/gelderland/buren
   link_pattern: huislijn\.nl/huurwoning/nederland/[a-z-]+/[0-9]+/
   enabled: false
+- name: REBO alle huurwoningen
+  url: https://www.rebogroep.nl/nl/particulier/ons-aanbod/huren
+  link_pattern: rebogroep\.nl/nl/aanbod/[0-9a-f]{8}-
+  require_text:
+  - huur
+  exclude_text:
+  - onder optie
+  - verhuurd
+  - verkocht
+  - koop
+  - k.k.
+  enabled: true
+- name: REBO Utrecht
+  url: https://www.rebogroep.nl/nl/vestigingen/utrecht-particulier
+  link_pattern: rebogroep\.nl/nl/aanbod/[0-9a-f]{8}-
+  require_text:
+  - huur
+  exclude_text:
+  - onder optie
+  - verhuurd
+  - verkocht
+  - koop
+  - k.k.
+  enabled: true
 - name: Rick Zeedijk huur
   url: https://www.rickzeedijk.nl/woningen/huur/
   link_pattern: rickzeedijk\.nl/woning/
